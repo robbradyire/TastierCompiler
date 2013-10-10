@@ -124,6 +124,54 @@ Scope externalDeclarations = new Scope();
 Program program = new Program();
 Program header = new Program();
 
+Stack<string> openProcedureDeclarations = new Stack<string>();
+
+/*
+  In order to implement the "shadowing" of global procedures by local procedures
+  properly, we need to generate a label for local procedures that is different
+  from the label given to procedures of the same name in outer scopes. See the
+  test cast program "procedure-label-shadowing.TAS" for an example of why this
+  is important. In order to make labels unique, when we encounter a non-global
+  procedure declaration called "foo" (for example), we'll give it the label
+  "enclosingProcedureName$foo" for all enclosing procedures. So if it's at
+  nesting level 2, it'll get the label "outermost$nextoutermost$foo". Let's
+  make a function that does this label generation given the set of open
+  procedures which enclose some new procedure name.
+*/
+
+string generateProcedureName(string name) {
+  if (openProcedureDeclarations.Count == 0) {
+    return name;
+  } else {
+    string temp = name;
+    foreach (string s in openProcedureDeclarations) {
+      temp = s + "$" + temp;
+    }
+    return temp;
+  }
+}
+
+/*
+  We also need a function that figures out, when we call a procedure from some
+  scope, what label to call. This is where we actually implement the shadowing;
+  the innermost procedure with that name should be called, so we have to figure
+  out what the label for that procedure is.
+*/
+
+string getLabelForProcedureName(int lexicalLevelDifference, string name) {
+  int temp = lexicalLevelDifference; //we want to skip <lexicalLevelDifference> labels
+  string theLabel = name;
+
+  foreach (string s in openProcedureDeclarations) {
+    if (temp == 0) {
+      theLabel = s + "$" + theLabel;
+    } else {
+      temp = temp - 1;
+    }
+  }
+  return theLabel;
+}
+
 Stack<string> openLabels = new Stack<string>();
 int labelSeed = 0;
 
@@ -304,7 +352,8 @@ ProcDecl                        (.  string name; Scope currentScope = openScopes
   '(' ')'
   '{'                           (.
                                     enterInstLocation = program.Count;
-                                    program.Add(new Instruction(name, "Enter 0"));
+                                    program.Add(new Instruction(generateProcedureName(name), "Enter 0"));
+                                    openProcedureDeclarations.Push(name);
                                     /*
                                       Enter is supposed to have as an
                                       argument the next free address on the
@@ -338,6 +387,7 @@ ProcDecl                        (.  string name; Scope currentScope = openScopes
                                     openScopes.Pop();
                                     // now we can generate the Enter instruction properly
                                     program.Insert(enterInstLocation, new Instruction("", "Enter " + currentScope.Count));
+                                    openProcedureDeclarations.Pop();
                                 .).
 
 /*------------------------------------------------------------------------*/
@@ -405,8 +455,9 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                     }
 
                                     int currentStackLevel = openScopes.Count;
-                                    int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                    program.Add(new Instruction("", "Call " + lexicalLevelDifference + " " + sym.Item1));
+                                    int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4);
+                                    string procedureLabel = getLabelForProcedureName(lexicalLevelDifference, sym.Item1);
+                                    program.Add(new Instruction("", "Call " + lexicalLevelDifference + " " + procedureLabel));
                                 .)
   )
 
