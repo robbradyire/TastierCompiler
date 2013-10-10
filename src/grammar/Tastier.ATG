@@ -130,7 +130,7 @@ Stack<string> openProcedureDeclarations = new Stack<string>();
   In order to implement the "shadowing" of global procedures by local procedures
   properly, we need to generate a label for local procedures that is different
   from the label given to procedures of the same name in outer scopes. See the
-  test cast program "procedure-label-shadowing.TAS" for an example of why this
+  test case program "procedure-label-shadowing.TAS" for an example of why this
   is important. In order to make labels unique, when we encounter a non-global
   procedure declaration called "foo" (for example), we'll give it the label
   "enclosingProcedureName$foo" for all enclosing procedures. So if it's at

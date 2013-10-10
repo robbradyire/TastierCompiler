@@ -1,7 +1,5 @@
-
-// This is a test program which can be compiled by the Taste-compiler.
-// It reads a sequence of numbers and computes the sum of all integers
-// up to these numbers.
+// This program is a test case for memory holes being gone; i and j should live
+// at consecutive addresses in memory even though a procedure is declared between
 
 program Test {
   int i;

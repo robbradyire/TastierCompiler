@@ -1,3 +1,4 @@
+//This program is a simple test of global and local variables and loops
 
 program Test {
   int i;
