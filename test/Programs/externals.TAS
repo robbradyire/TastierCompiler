@@ -2,6 +2,7 @@
 
 program Test {
   external int i;
+  external procedure Test;
 
   void Test() {
     read i;
