@@ -342,7 +342,7 @@ MulOp<out Instruction inst>
 
 /*------------------------------------------------------------------------*/
 
-ProcDecl                        (.  string name; Scope currentScope = openScopes.Peek(); int enterInstLocation = 0; bool external = false; .)
+ProcDecl                        (.  string name; string label; Scope currentScope = openScopes.Peek(); int enterInstLocation = 0; bool external = false; .)
 = "void"
   Ident<out name>               (.
                                     currentScope.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, openScopes.Count, -1));
@@ -351,8 +351,9 @@ ProcDecl                        (.  string name; Scope currentScope = openScopes
                                 .)
   '(' ')'
   '{'                           (.
-                                    enterInstLocation = program.Count;
-                                    program.Add(new Instruction(generateProcedureName(name), "Enter 0"));
+                                    program.Add(new Instruction("", "Enter 0"));
+                                    enterInstLocation = program.Count - 1;
+                                    label = generateProcedureName(name);
                                     openProcedureDeclarations.Push(name);
                                     /*
                                       Enter is supposed to have as an
@@ -386,7 +387,9 @@ ProcDecl                        (.  string name; Scope currentScope = openScopes
                                     program.Add(new Instruction("", "Ret"));
                                     openScopes.Pop();
                                     // now we can generate the Enter instruction properly
-                                    program.Insert(enterInstLocation, new Instruction("", "Enter " + currentScope.Count));
+                                    program[enterInstLocation] =
+                                      new Instruction(label, "Enter " +
+                                                      currentScope.Count(s => s.Item2 == (int)TastierKind.Var));
                                     openProcedureDeclarations.Pop();
                                 .).
 

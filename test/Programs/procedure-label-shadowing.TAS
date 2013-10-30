@@ -19,16 +19,24 @@ program Test {
 
   void func2() {
     number = 5;
+    int local;
 
     void func3() {
       number = 6;
 
       void func() {
         number = 7;
+        local = number;
+        write local;
       }
 
+      write local;
       func(); // this should call the func() we defined in *this* scope!
     }
+
+    write local;
+    // we should see 7, but func() inside func3() will have to look in this,
+    //func2()'s stack frame to update the value of "local".
 
     func3();
   }
