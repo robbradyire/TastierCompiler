@@ -4,9 +4,11 @@
 program Test {
   external int i;
   external procedure Test;
+  int j;
 
   void Useless() {
     int uselessLocal;
+    j = 4;
     uselessLocal = 5;
     while (uselessLocal > 0) {
       uselessLocal = uselessLocal - 1;
