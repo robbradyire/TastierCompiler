@@ -388,6 +388,7 @@ ProcDecl                        (.  string name; string label; Scope currentScop
                                       put the right value in.
                                     */
                                 .)
+  { ConstDecl }
 
   { VarDecl<external> | Stat |  (.
                                     openLabels.Push(generateLabel());
@@ -684,9 +685,9 @@ ConstDecl                       (.
                                       SemErr("constant already exists");
                                     }
                                                                         
-                                    currentScope.Push(new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 == (int)TastierKind.Const || s.Item2 == (int)TastierKind.Const)));
+                                    currentScope.Push(new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const)));
                                     sym = lookup(openScopes, name);
-                                    Console.WriteLine("Global constant " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Const || s.Item2 == (int)TastierKind.Const));
+                                    Console.WriteLine("Global constant " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
                                 .)
     ":="
 
@@ -698,8 +699,7 @@ ConstDecl                       (.
                                     if (sym.Item4 == 0) {
                                       program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
                                     } else {
-                                      int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
+                                      program.Add(new Instruction("", "Sto " + 0 + " " + sym.Item5));
                                     }
                                 .).
 
