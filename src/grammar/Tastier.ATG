@@ -388,7 +388,6 @@ ProcDecl                        (.  string name; string label; Scope currentScop
                                       put the right value in.
                                     */
                                 .)
-  { ConstDecl }
 
   { VarDecl<external> | Stat |  (.
                                     openLabels.Push(generateLabel());

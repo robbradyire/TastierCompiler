@@ -6,6 +6,8 @@ program MyTest {
     void testFive() {
         const int funcvar := 5;
         if (number >= funcvar) write 1; else write 0;
+        write funcvar;
+        write number;
     }
 
     void is1() {
