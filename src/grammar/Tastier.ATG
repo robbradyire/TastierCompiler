@@ -255,12 +255,10 @@ letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
   cr  = '\r'.
   lf  = '\n'.
   tab = '\t'.
-  quote = '"'.
 
 TOKENS
   ident  = letter {letter | digit}.
   number = digit {digit}.
-  string = quote {letter | digit} quote.
 
 COMMENTS FROM "/*" TO "*/" NESTED
 COMMENTS FROM "//" TO lf
@@ -362,11 +360,6 @@ MulOp<out Instruction inst>
 ProcDecl                        (.  string name; string label; Scope currentScope = openScopes.Peek(); int enterInstLocation = 0; bool external = false; .)
 = "void"
   Ident<out name>               (.
-                                    // jump over the function when running through the whole program
-                                    openLabels.Push(generateLabel());
-                                    program.Add(new Instruction("", "Jmp " + openLabels.Peek()));
-                                    
-
                                     currentScope.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, openScopes.Count, -1));
                                     if (openScopes.Count == 0) {
                                       Console.WriteLine("Global procedure " + name + " in frame " + openScopes.Count);
@@ -418,10 +411,10 @@ ProcDecl                        (.  string name; string label; Scope currentScop
                                     // now we can generate the Enter instruction properly
                                     program[enterInstLocation] =
                                       new Instruction(label, "Enter " +
-                                                      currentScope.Count(s => s.Item2 == (int)TastierKind.Var));
+                                                      currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
                                     openProcedureDeclarations.Pop();
 
-                                    program.Add(new Instruction(openLabels.Pop(), "Nop"));
+
                                 .).
 
 /*------------------------------------------------------------------------*/
@@ -590,8 +583,17 @@ Tastier                         (.  string name; bool external = false; .)
 
   { ConstDecl }
 
-  { VarDecl<external> | ProcDecl | ExternDecl }
-  '}'                           (.
+  { VarDecl<external> 
+
+    |                           (.
+                                    // jump over the function when running through the whole program
+                                    openLabels.Push(generateLabel());
+                                    program.Add(new Instruction("", "Jmp " + openLabels.Peek()));
+                                .)
+    ProcDecl                    (. program.Add(new Instruction(openLabels.Pop(), "Nop")); .)
+
+    | ExternDecl }
+   '}'                           (.
                                     if (openScopes.Peek().Count == 0) {
                                       Warn("Warning: Program " + name + " is empty ");
                                     }
@@ -615,7 +617,6 @@ Tastier                         (.  string name; bool external = false; .)
                                         SemErr("external item " + s.Item1 + " has no defined type");
                                       }
                                     }
-                                    program.Add(new Instruction("", "Call 0 Main"));
                                     header.AddRange(program);
                                     openScopes.Pop();
                                 .).
@@ -692,9 +693,8 @@ ConstDecl                       (.
                                     if (lookup(openScopes, name) != null) {
                                       SemErr("constant already exists");
                                     }
-                                                                        
-                                    currentScope.Push(new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const)));
-                                    sym = lookup(openScopes, name);
+                                    sym = new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                    currentScope.Push(sym);
                                     if (openScopes.Count - 1 == 0) {
                                       Console.WriteLine("Global constant " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
                                     } else {
