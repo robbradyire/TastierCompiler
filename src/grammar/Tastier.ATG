@@ -411,7 +411,7 @@ ProcDecl                        (.  string name; string label; Scope currentScop
                                     // now we can generate the Enter instruction properly
                                     program[enterInstLocation] =
                                       new Instruction(label, "Enter " +
-                                                      currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                                      currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                     openProcedureDeclarations.Pop();
 
 
@@ -653,11 +653,11 @@ VarDecl<bool external>          (.
                                     if (external) {
                                       externalDeclarations.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, 0));
                                     } else {
-                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const)));
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc)));
                                       if (openScopes.Count - 1 == 0) {
-                                        Console.WriteLine("Global variable " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                        Console.WriteLine("Global variable " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                       } else {
-                                        Console.WriteLine("Variable " + name + " of type " + type + " in frame " + (openScopes.Count-1) + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                        Console.WriteLine("Variable " + name + " of type " + type + " in frame " + (openScopes.Count-1) + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                       }
                                     }
                                 .)
@@ -665,11 +665,11 @@ VarDecl<bool external>          (.
                                     if (external) {
                                       externalDeclarations.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, 0));
                                     } else {
-                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const)));
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc)));
                                       if (openScopes.Count - 1 == 0) {
-                                        Console.WriteLine("Global variable " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                        Console.WriteLine("Global variable " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                       } else {
-                                        Console.WriteLine("Variable " + name + " of type " + type + " in frame " + (openScopes.Count-1) + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                        Console.WriteLine("Variable " + name + " of type " + type + " in frame " + (openScopes.Count-1) + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                       }
                                     }
                                 .)
@@ -693,12 +693,12 @@ ConstDecl                       (.
                                     if (lookup(openScopes, name) != null) {
                                       SemErr("constant already exists");
                                     }
-                                    sym = new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                    sym = new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                     currentScope.Push(sym);
                                     if (openScopes.Count - 1 == 0) {
-                                      Console.WriteLine("Global constant " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                      Console.WriteLine("Global constant " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                     } else {
-                                      Console.WriteLine("Constant " + name + " of type " + type + " in frame " + (openScopes.Count-1) + " at index " + currentScope.Count(s => s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const));
+                                      Console.WriteLine("Constant " + name + " of type " + type + " in frame " + (openScopes.Count-1) + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                     }
                                 .)
     ":="
