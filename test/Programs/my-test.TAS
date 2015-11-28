@@ -2,6 +2,7 @@ program MyTest {
 
     const int number := 2;
     int x;
+    string str[5];
 
     void testFive() {
         const int c := 5;

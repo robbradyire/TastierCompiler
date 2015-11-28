@@ -7,7 +7,8 @@ COMPILER Tastier
   enum TastierType : int {   // types for variables
     Undefined,
     Integer,
-    Boolean
+    Boolean,
+    String
   };
 
   enum TastierKind : int {  // kinds of symbol
@@ -27,7 +28,7 @@ COMPILER Tastier
   Parser.frame, but they're documented in this file, with the rest.
 */
 
-  //using Symbol = System.Tuple<string, int, int, int, int>;
+  //using Symbol = System.Tuple<string, int, int, int, int, int>;
 
 /*
   A Symbol is a name with a type and a kind. The first int in the
@@ -75,6 +76,7 @@ COMPILER Tastier
     * Symbol.Item4 -> stack frame pointer
     * Symbol.Item5 -> variable's address in the stack frame pointed to by
                       Item4, -1 if procedure
+    * Symbol.Item6 -> size
 */
 
   class Scope : Stack<Symbol> {}
@@ -255,10 +257,12 @@ letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
   cr  = '\r'.
   lf  = '\n'.
   tab = '\t'.
+  bs = '\\'.
 
 TOKENS
   ident  = letter {letter | digit}.
   number = digit {digit}.
+  string = '"' {letter | digit | cr | lf | tab | bs} '"'.
 
 COMMENTS FROM "/*" TO "*/" NESTED
 COMMENTS FROM "//" TO lf
@@ -360,7 +364,7 @@ MulOp<out Instruction inst>
 ProcDecl                        (.  string name; string label; Scope currentScope = openScopes.Peek(); int enterInstLocation = 0; bool external = false; .)
 = "void"
   Ident<out name>               (.
-                                    currentScope.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, openScopes.Count, -1));
+                                    currentScope.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, openScopes.Count, -1, 0));
                                     if (openScopes.Count == 0) {
                                       Console.WriteLine("Global procedure " + name + " in frame " + openScopes.Count);
                                     } else {
@@ -641,19 +645,25 @@ Type<out TastierType type>
 =                               (.  type = TastierType.Undefined; .)
  ( "int"                        (.  type = TastierType.Integer; .)
  | "bool"                       (.  type = TastierType.Boolean; .)
+ | "string"                     (.  type = TastierType.String; .)
  ).
 
 /*------------------------------------------------------------------------*/
 
 VarDecl<bool external>          (.
-                                    string name; TastierType type; Scope currentScope = openScopes.Peek();
+                                    int len; string name; TastierType type; Scope currentScope = openScopes.Peek();
                                 .)
 = Type<out type>
-  Ident<out name>               (.
+  Ident<out name>               
+    (
+    ';'                         (.
+                                    if ((int)type == (int)TastierType.String) {
+                                        SemErr("the length of a String must be declared, eg: String str[5]");
+                                    }
                                     if (external) {
-                                      externalDeclarations.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, 0));
+                                      externalDeclarations.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, 0, 1));
                                     } else {
-                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc)));
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc), 1));
                                       if (openScopes.Count - 1 == 0) {
                                         Console.WriteLine("Global variable " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                       } else {
@@ -661,11 +671,19 @@ VarDecl<bool external>          (.
                                       }
                                     }
                                 .)
-  { ',' Ident<out name>         (.
+
+    | '['
+    number                      (.
+                                    if ((int)type != (int)TastierType.String) {
+                                        SemErr("I haven't implemented proper arrays yet please be patient");
+                                    }
+                                    len = Convert.ToInt32(t.val);
+                                .)
+    ']' ';'                     (.
                                     if (external) {
-                                      externalDeclarations.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, 0));
+                                      externalDeclarations.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, 0, len));
                                     } else {
-                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc)));
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc), len));
                                       if (openScopes.Count - 1 == 0) {
                                         Console.WriteLine("Global variable " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
                                       } else {
@@ -673,13 +691,55 @@ VarDecl<bool external>          (.
                                       }
                                     }
                                 .)
-  } ';'.
+
+    )
+
+  { ',' Ident<out name>               
+    (
+    ';'                         (.
+                                    if ((int)type == (int)TastierType.String) {
+                                        SemErr("the length of a String must be declared, eg: String str[5]");
+                                    }
+                                    if (external) {
+                                      externalDeclarations.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, 0, 1));
+                                    } else {
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc), 1));
+                                      if (openScopes.Count - 1 == 0) {
+                                        Console.WriteLine("Global variable " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
+                                      } else {
+                                        Console.WriteLine("Variable " + name + " of type " + type + " in frame " + (openScopes.Count-1) + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
+                                      }
+                                    }
+                                .)
+
+    | '['
+    number                      (.
+                                    if ((int)type != (int)TastierType.String) {
+                                        SemErr("I haven't implemented proper arrays yet please be patient");
+                                    }
+                                    len = Convert.ToInt32(t.val);
+                                .)
+    ']' ';'                     (.
+                                    if (external) {
+                                      externalDeclarations.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, 0, len));
+                                    } else {
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc), len));
+                                      if (openScopes.Count - 1 == 0) {
+                                        Console.WriteLine("Global variable " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
+                                      } else {
+                                        Console.WriteLine("Variable " + name + " of type " + type + " in frame " + (openScopes.Count-1) + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
+                                      }
+                                    }
+                                .)
+    )
+  }.
+
 
 ExternDecl                      (.  string name; bool external = true; Scope currentScope = openScopes.Peek(); int count = currentScope.Count; .)
 = "external"
   ( VarDecl<external>
   | "procedure" Ident<out name> ';'
-                                (.  externalDeclarations.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, 1, -1)); .)
+                                (.  externalDeclarations.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, 1, -1, 1)); .)
   ) .
 
 /*------------------------------------------------------------------------*/
@@ -693,7 +753,7 @@ ConstDecl                       (.
                                     if (lookup(openScopes, name) != null) {
                                       SemErr("constant already exists");
                                     }
-                                    sym = new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
+                                    sym = new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, currentScope.Count(s => s.Item2 != (int)TastierKind.Proc), 1);
                                     currentScope.Push(sym);
                                     if (openScopes.Count - 1 == 0) {
                                       Console.WriteLine("Global constant " + name + " of type " + type  + " at index " + currentScope.Count(s => s.Item2 != (int)TastierKind.Proc));
