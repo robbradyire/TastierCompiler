@@ -2,11 +2,10 @@ program MyTest {
 
     const int number := 2;
     int x;
-    string str[5];
+    string str := "a string";
 
     void testFive() {
         const int c := 5;
-        string str[3];
         if (c >= number) write c; else write number;
         write c;
         write number;

@@ -258,10 +258,13 @@ letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
   cr  = '\r'.
   lf  = '\n'.
   tab = '\t'.
+  space = ' '.
+  invcomma = '"'.
 
 TOKENS
   ident  = letter {letter | digit}.
   number = digit {digit}.
+  string = invcomma {letter | digit | space | lf | tab} invcomma.
 
 COMMENTS FROM "/*" TO "*/" NESTED
 COMMENTS FROM "//" TO lf
@@ -454,11 +457,13 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                       SemErr("reference to undefined variable " + name);
                                     }
                                 .)
-  ( ":="                         (.
+  ( ":="                         
+                                (.
                                     if ((TastierKind)sym.Item2 != TastierKind.Var) {
                                       SemErr("cannot assign to non-variable");
                                     }
                                 .)
+
     Expr<out type> ';'
                                 (.
                                     if (type != (TastierType)sym.Item3) {
@@ -645,13 +650,15 @@ Type<out TastierType type>
 /*------------------------------------------------------------------------*/
 
 VarDecl<bool external>          (.
-                                    string name; TastierType type; int scopeSize; int n; Scope currentScope = openScopes.Peek();
+                                    string name; TastierType type; int scopeSize; int n; string str; Scope currentScope = openScopes.Peek();
                                 .)
 = Type<out type>
   Ident<out name>               
   (
-    '[' number                  (.
-                                    n = Convert.ToInt32(t.val);
+    ":="
+    string                        (.
+                                    str = (t.val).Substring(1, t.val.Length - 2);
+                                    n = str.Length;
                                     if (type != TastierType.String) {
                                       SemErr("only strings can take a size argument");
                                     }
@@ -677,9 +684,14 @@ VarDecl<bool external>          (.
                                         program.Add(new Instruction("", "StoG " + (globalScopeSize + 3)));
                                         globalScopeSize += 1 + n; // space for size + chars
                                       }
+                                      for (int i = 0; i < n; i++) {
+                                        program.Add(new Instruction("", "Const " + (int)str[i]));
+                                        program.Add(new Instruction("", "StoG " + (globalScopeSize + 3 + i)));
+                                      }
                                     }
                                 .)
-  ']' ';' | 
+  ';'
+  | 
                                 (.
                                     if (type == TastierType.String) {
                                       SemErr("incorrect usage of string, use: string str[5];");
