@@ -6,6 +6,7 @@ program MyTest {
 
     void testFive() {
         const int c := 5;
+        string str[3];
         if (c >= number) write c; else write number;
         write c;
         write number;
