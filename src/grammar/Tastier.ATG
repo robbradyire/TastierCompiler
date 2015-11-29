@@ -566,11 +566,16 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                 .)
 
 | "write"
-  Expr<out type> ';'            (.
-                                    if (type != TastierType.Integer) {
-                                      SemErr("integer type expected");
+  
+   Expr<out type> ';'            (.
+                                    if (type != TastierType.Integer && type != TastierType.String) {
+                                      SemErr("integer or string type expected");
                                     }
-                                    program.Add(new Instruction("", "Write"));
+                                    if (type == TastierType.Integer) {
+                                      program.Add(new Instruction("", "Write"));
+                                    } else {
+                                      program.Add(new Instruction("", "WriteStr"));
+                                    }
                                 .)
 
 | '{' { Stat | VarDecl<external> } '}' .
@@ -658,6 +663,7 @@ VarDecl<bool external>          (.
     ":="
     string                        (.
                                     str = (t.val).Substring(1, t.val.Length - 2);
+                                    Console.WriteLine(str);
                                     n = str.Length;
                                     if (type != TastierType.String) {
                                       SemErr("only strings can take a size argument");
