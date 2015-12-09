@@ -1,23 +1,14 @@
 program MyTest {
 
-    const int number := 2;
+    const int number := 0;
     int x;
-    string str := "a string";
 
-    void testFive() {
-        const int c := 5;
-        write str;
-        if (c >= number) write c; else write number;
-        write c;
-        write number;
-    }
-
-    void is1() {
-        read x;
-        if (number = 1) write 1; else write 0;
+    void test() {
+        x := number > 1 ? number : 1;
+        write x;
     }
 
     void Main() {
-        testFive();
+        test();
     }
 }

@@ -464,7 +464,9 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                     }
                                 .)
 
-    Expr<out type> ';'
+    Expr<out type>
+
+    ( ';'
                                 (.
                                     if (type != (TastierType)sym.Item3) {
                                       SemErr("incompatible types");
@@ -482,6 +484,57 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                       program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
                                     }
                                 .)
+    | '?'                       (.
+                                    if (type != TastierType.Boolean) {
+                                        SemErr("First expression in the conditional must be a boolean");
+                                    }
+                                    openLabels.Push(generateLabel());
+                                    program.Add(new Instruction("", "FJmp " + openLabels.Peek()));
+                                .)
+      Expr<out type>            (.
+                                    if (type != (TastierType)sym.Item3) {
+                                      SemErr("incompatible types");
+                                    }
+                                    if (sym.Item4 == 0) {
+                                      if (isExternal) {
+                                        program.Add(new Instruction("", "StoG " + sym.Item1));
+                                        // if the symbol is external, we also store it by name. The linker will resolve the name to an address.
+                                      } else {
+                                        program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
+                                      }
+                                    }
+                                    else {
+                                      int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
+                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
+                                    }
+                                    Instruction startOfElse = new Instruction(openLabels.Pop(), "Nop");
+                                    openLabels.Push(generateLabel());
+                                    program.Add(new Instruction("", "Jmp " + openLabels.Peek()));
+                                    program.Add(startOfElse);
+                                .)
+      ':'
+      Expr<out type>            (.
+                                    if (type != (TastierType)sym.Item3) {
+                                      SemErr("incompatible types");
+                                    }
+                                    if (sym.Item4 == 0) {
+                                      if (isExternal) {
+                                        program.Add(new Instruction("", "StoG " + sym.Item1));
+                                        // if the symbol is external, we also store it by name. The linker will resolve the name to an address.
+                                      } else {
+                                        program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
+                                      }
+                                    }
+                                    else {
+                                      int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
+                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
+                                    }
+                                .)
+    ';'                         (.
+                                    program.Add(new Instruction(openLabels.Pop(), "Nop"));
+                                .)
+    )
+
   | '(' ')' ';'                 (.
                                     if ((TastierKind)sym.Item2 != TastierKind.Proc) {
                                       SemErr("object is not a procedure");
@@ -663,7 +716,6 @@ VarDecl<bool external>          (.
     ":="
     string                        (.
                                     str = (t.val).Substring(1, t.val.Length - 2);
-                                    Console.WriteLine(str);
                                     n = str.Length;
                                     if (type != TastierType.String) {
                                       SemErr("only strings can take a size argument");
