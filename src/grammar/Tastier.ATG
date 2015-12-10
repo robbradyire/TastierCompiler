@@ -659,7 +659,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                 .)
 ]
   ')' '{'                 
-  Stat                          
+  {Stat}                         
 
   '}'                           (.
                                     if (hasEndThing) {

@@ -4,7 +4,8 @@ program MyTest {
     int x;
 
     void test() {
-        for (x := 0; x < 5;) {
+        for (x := 0; x < 5; x := x + 1) {
+            x := x + 1;
             write x;
         }
     }
