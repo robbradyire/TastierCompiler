@@ -1,6 +1,6 @@
 program MyTest {
 
-    void test() {
+    void test1() {
         int i;
         int j;
         int mul;
@@ -12,7 +12,14 @@ program MyTest {
         }
     }
 
+    void test2() {
+        int x;
+        x := 1 > 0 ? 1 : 0;
+        write x;
+    }
+
     void Main() {
-        test();
+        test1();
+        test2();
     }
 }
