@@ -21,7 +21,7 @@ program MyTest {
     }
 
     void Main() {
-        //test1();
+        test1();
         test2();
     }
 }
