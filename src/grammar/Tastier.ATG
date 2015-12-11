@@ -445,7 +445,7 @@ SimExpr<out TastierType type>   (.  TastierType type1; Instruction inst; .)
 
 /*------------------------------------------------------------------------*/
 
-Stat                            (.  TastierType type; string name; Symbol sym; bool hasEndThing = false; bool external = false; bool isExternal = false; .)
+Stat                            (.  TastierType type; string name; Symbol sym; bool external = false; bool isExternal = false; .)
 
 = Ident<out name>               (.
                                     sym = lookup(openScopes, name);
@@ -570,7 +570,8 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
         Stat
       ]                         (.  program.Add(new Instruction(openLabels.Pop(), "Nop")); .)
 
-| "while"                       (.  string loopStartLabel = generateLabel();
+| "while"                       (.  
+                                    string loopStartLabel = generateLabel();
                                     openLabels.Push(generateLabel()); //second label is for the loop end
                                     program.Add(new Instruction(loopStartLabel, "Nop"));
                                 .)
@@ -617,23 +618,20 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                     }
                                 .)
   ]';'                          (.
-                                    string loopStartLabel = generateLabel();
-                                    openLabels.Push(generateLabel()); //second label is for the loop end
-                                    program.Add(new Instruction(loopStartLabel, "Nop"));
+                                    // the first label is created so that the increment statement can be jumped over in the first loop iteration
+                                    string firstIterationLabel = generateLabel();
+                                    program.Add(new Instruction("", "Jmp " + firstIterationLabel));
 
+                                    // the second label is for jumping back to the increment statement at the end of the loop
+                                    string loopStartLabel = generateLabel();
+                                    program.Add(new Instruction(loopStartLabel, "Nop"));
+                                    openLabels.Push(loopStartLabel);
+                                    openLabels.Push(firstIterationLabel);
                                 .)
-  Expr<out type>                (.
-                                    if ((TastierType)type != TastierType.Boolean) {
-                                      SemErr("boolean type expected");
-                                    }
-                                    program.Add(new Instruction("", "FJmp " + openLabels.Peek())); // jump to the loop end label if condition is false
-                                .)
-  ';'                           (.  Instruction endUpdate = new Instruction("", "Nop"); .)
 [ Ident<out name>
   ":=" 
   Expr<out type>                                         
                                 (.
-                                    hasEndThing = true;
                                     sym = lookup(openScopes, name);
                                     if (sym == null) {
                                       sym = _lookup(externalDeclarations, name);
@@ -650,23 +648,33 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                       SemErr("incompatible types");
                                     }
                                     if (sym.Item4 == 0) {
-                                      endUpdate = new Instruction("", "StoG " + (sym.Item5+3));
-                                    }
-                                    else {
+                                      program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
+                                    } else {
                                       int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                      endUpdate = new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5);
+                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
                                     }
                                 .)
-]
-  ')' '{'                 
+] ';'                           (.
+                                    // insert the label for the start of the first iteration
+                                    program.Add(new Instruction(openLabels.Pop(), "Nop"));
+                                .)
+  Expr<out type>                (.
+                                    if ((TastierType)type != TastierType.Boolean) {
+                                      SemErr("boolean type expected");
+                                    }
+                                    // jump to loop end
+                                    string endLabel = generateLabel();
+                                    openLabels.Push(endLabel);
+                                    program.Add(new Instruction("", "FJmp " + endLabel)); // jump to the loop end label if condition is false
+                                .)
+                                
+  ')' '{'                     
   {Stat}                         
 
   '}'                           (.
-                                    if (hasEndThing) {
-                                      program.Add(endUpdate);
-                                    }
-                                    program.Add(new Instruction("", "Jmp " + loopStartLabel));
-                                    program.Add(new Instruction(openLabels.Pop(), "Nop")); // put the loop end label here
+                                    endLabel = openLabels.Pop(); // get the label for the end of the loop
+                                    program.Add(new Instruction("", "Jmp " + openLabels.Pop())); // jump back to the terminating condition
+                                    program.Add(new Instruction(endLabel, "Nop")); // end of loop
                                 .)
               
 | "read"
