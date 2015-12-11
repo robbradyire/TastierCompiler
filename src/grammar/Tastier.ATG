@@ -628,7 +628,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                     openLabels.Push(loopStartLabel);
                                     openLabels.Push(firstIterationLabel);
                                 .)
-[ Ident<out name>
+  Ident<out name>
   ":=" 
   Expr<out type>                                         
                                 (.
@@ -654,7 +654,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; b
                                       program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
                                     }
                                 .)
-] ';'                           (.
+  ';'                           (.
                                     // insert the label for the start of the first iteration
                                     program.Add(new Instruction(openLabels.Pop(), "Nop"));
                                 .)
