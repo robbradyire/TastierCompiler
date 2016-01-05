@@ -8,11 +8,14 @@ COMPILER Tastier
     Undefined,
     Integer,
     Boolean,
-    String
+    String,
+    IntegerArray,
+    BooleanArray
   };
 
   enum TastierKind : int {  // kinds of symbol
     Var,
+    Array,
     Const,
     Proc
   };
@@ -28,7 +31,7 @@ COMPILER Tastier
   Parser.frame, but they're documented in this file, with the rest.
 */
 
-  //using Symbol = System.Tuple<string, int, int, int, int, int>;
+  //using Symbol = System.Tuple<string, int, int, int, int, int, int[]>;
 
 /*
   A Symbol is a name with a type and a kind. The first int in the
@@ -77,6 +80,7 @@ COMPILER Tastier
     * Symbol.Item5 -> variable's address in the stack frame pointed to by
                       Item4, -1 if procedure
     * Symbol.Item6 -> length of the symbol in memory
+    * Symbol.Item7 -> Array of the dimensions of an array
 */
 
   class Scope : Stack<Symbol> {}
@@ -257,6 +261,22 @@ int getScopeSize(Scope scope) {
     return size;
 }
 
+int getArrayOffset(int[] indices, int[] dimensions) {
+    int offset = indices[0];
+    for (int i = 0; i < indices.Length; i++) {
+        offset = offset * dimensions[i] + indices[i];
+    }
+    return offset;
+}
+
+int getArraySize(int[] dimensions) {
+    int size = 1;
+    for (int i = 0; i < dimensions.Length; i++) {
+        size *= dimensions[i];
+    }
+    return size;
+}
+
 /*--------------------------------------------------------------------------*/
 
 CHARACTERS
@@ -373,7 +393,7 @@ MulOp<out Instruction inst>
 ProcDecl                        (.  string name; string label; Scope currentScope = openScopes.Peek(); int enterInstLocation = 0; bool external = false; .)
 = "void"
   Ident<out name>               (.
-                                    currentScope.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, openScopes.Count, -1, 0));
+                                    currentScope.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, openScopes.Count, -1, 0, null));
                                     openScopes.Push(new Scope());
                                     currentScope = openScopes.Peek();
                                 .)
@@ -806,58 +826,103 @@ Type<out TastierType type>
 /*------------------------------------------------------------------------*/
 
 VarDecl<bool external>          (.
-                                    string name; TastierType type; int scopeSize; int n; string str; Scope currentScope = openScopes.Peek();
+                                    string name; TastierType type; int scopeSize; int n; int[] dimensions; string str; Scope currentScope = openScopes.Peek();
                                 .)
 = Type<out type>
   Ident<out name>               
   (
-    ":="
+    ":="                        (.
+                                    if (type != TastierType.String) {
+                                      SemErr("Only strings can be assigned when declared.");
+                                    }
+                                .)
     string                        (.
                                     str = (t.val).Substring(1, t.val.Length - 2);
                                     n = str.Length;
-                                    if (type != TastierType.String) {
-                                      SemErr("only strings can take a size argument");
-                                    }
                                     scopeSize = getScopeSize(currentScope);
                                     if (openScopes.Count == 1) {
-                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, scopeSize, n + 1));
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, 0, scopeSize, n + 1, null));
                                       program.Add(new Instruction("", "Const " + n));
-                                      program.Add(new Instruction("", "StoG " + scopeSize);
+                                      program.Add(new Instruction("", "StoG " + scopeSize));
                                       for (int i = 0; i < n; i++) {
                                         program.Add(new Instruction("", "Const " + (int)str[i]));
                                         program.Add(new Instruction("", "StoG " + (scopeSize + 1 + i)));
                                       }
                                     } else {
-                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, scopeSize, n + 1));
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, scopeSize, n + 1, null));
                                       program.Add(new Instruction("", "Const " + n));
-                                      program.Add(new Instruction("", "Sto " + 0 + " " + scopeSize);
+                                      program.Add(new Instruction("", "Sto " + 0 + " " + scopeSize));
                                       for (int i = 0; i < n; i++) {
                                         program.Add(new Instruction("", "Const " + (int)str[i]));
-                                        program.Add(new Instruction("", "Sto " + 0 + " " + (scopeSize + 1 + i));
+                                        program.Add(new Instruction("", "Sto " + 0 + " " + (scopeSize + 1 + i)));
                                       }
                                     }
                                   .)
   ';'
   | 
+
+  ArrDecl<out dimensions>       (.
+                                    TastierType arrayType = TastierType.Undefined;
+                                    switch (type) {
+                                      case TastierType.Integer:
+                                        arrayType = TastierType.IntegerArray;
+                                        break;
+                                      case TastierType.Boolean:
+                                        arrayType = TastierType.BooleanArray;
+                                        break;
+                                      default:
+                                        SemErr("Arrays can only be of type int or bool");
+                                        break;
+                                    }
+                                    currentScope.Push(new Symbol(name, (int)TastierKind.Array, (int)arrayType, openScopes.Count-1, getScopeSize(currentScope), getArraySize(dimensions), dimensions));
+                                .)
+  ';'
+  |
+  
                                 (.
                                     if (type == TastierType.String) {
-                                      SemErr("incorrect usage of string, use: string str[5];");
+                                      SemErr("Incorrect string declaration. Use string " + name + " := \"{name}\"");
                                     }
-                                    currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1));
+                                    currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1, null));
                                 .)
   
     { ',' Ident<out name>       (.
-                                    currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1));
+                                    currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1, null));
                                 .)
     }
   ';'
+
   ).
+
+/*------------------------------------------------------------------------*/
+
+ArrDecl<out int[] dimensions>   (. int n; dimensions = new int[1]; .)
+
+=  '['
+     number             (. 
+                            n = Convert.ToInt32(t.val);
+                            dimensions[0] = n;
+                        .)
+  ']'
+  {
+     '['
+     number             (. 
+                            n = Convert.ToInt32(t.val);
+                            int[] tmp = new int[dimensions.Length + 1];
+                            dimensions.CopyTo(tmp, 0);
+                            tmp[tmp.Length-1] = n;
+                            dimensions = tmp;
+                        .)
+     ']'
+  } .
+
+/*------------------------------------------------------------------------*/
 
 ExternDecl                      (.  string name; bool external = true; Scope currentScope = openScopes.Peek(); int count = currentScope.Count; .)
 = "external"
   ( VarDecl<external>
   | "procedure" Ident<out name> ';'
-                                (.  externalDeclarations.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, 1, -1, 0)); .)
+                                (.  externalDeclarations.Push(new Symbol(name, (int)TastierKind.Proc, (int)TastierType.Undefined, 1, -1, 0, null)); .)
   ) .
 
 /*------------------------------------------------------------------------*/
@@ -871,7 +936,7 @@ ConstDecl                       (.
                                     if (lookup(openScopes, name) != null) {
                                       SemErr("constant already exists");
                                     }
-                                    sym = new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1);
+                                    sym = new Symbol(name, (int)TastierKind.Const, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1, null);
                                     currentScope.Push(sym);
                                 .)
     ":="
