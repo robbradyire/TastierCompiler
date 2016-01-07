@@ -6,5 +6,9 @@ program MyTest {
 
     void Main() {
         test1();
+        int k;
+        k := 420;
+        // blaze it
+        write k;
     }
 }
