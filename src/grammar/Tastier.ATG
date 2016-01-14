@@ -332,18 +332,37 @@ Factor<out TastierType type>    (.  int n; Symbol sym; string name; .)
                                     if (sym == null) {
                                       SemErr("reference to undefined variable " + name);
                                     }
-                                    else {
-                                      type = (TastierType)sym.Item3;
-                                      if ((TastierKind)sym.Item2 == TastierKind.Var || (TastierKind)sym.Item2 == TastierKind.Const) {
-                                        if (sym.Item4 == 0) {
-                                            program.Add(new Instruction("", "LoadG " + (sym.Item5+3)));
-                                        } else {
-                                            int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                            program.Add(new Instruction("", "Load " + lexicalLevelDifference + " " + sym.Item5));
-                                        }
-                                      } else SemErr("variable or constant expected");
+                                    type = (TastierType)sym.Item3;
+                                .)
+    (
+     ArrAccess<sym.Item7>       (.
+                                    // the offset is now on the stack
+                                    program.Add(new Instruction("", "Const " + sym.Item5));
+                                    program.Add(new Instruction("", "Add"));
+                                    // the address of the element wanted is now on the stack
+                                    if ((TastierKind)sym.Item2 == TastierKind.Array) {
+                                      if (sym.Item4 == 0) {
+                                        program.Add(new Instruction("", "LStackG "));
+                                      } else {
+                                        int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
+                                        program.Add(new Instruction("", "LStack " + lexicalLevelDifference));
+                                      }
                                     }
                                 .)
+
+     |                          (.
+                                    type = (TastierType)sym.Item3;
+                                    if ((TastierKind)sym.Item2 == TastierKind.Var || (TastierKind)sym.Item2 == TastierKind.Const) {
+                                      if (sym.Item4 == 0) {
+                                        program.Add(new Instruction("", "LoadG " + (sym.Item5)));
+                                      } else {
+                                        int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
+                                        program.Add(new Instruction("", "Load " + lexicalLevelDifference + " " + sym.Item5));
+                                      }
+                                    } else SemErr("variable or constant expected");
+                                .)
+  )
+
   | number                      (.
                                     n = Convert.ToInt32(t.val);
                                     program.Add(new Instruction("", "Const " + n));
@@ -369,6 +388,39 @@ Factor<out TastierType type>    (.  int n; Symbol sym; string name; .)
   | "true"                      (.  program.Add(new Instruction("", "Const " + 1)); type = TastierType.Boolean; .)
   | "false"                     (.  program.Add(new Instruction("", "Const " + 0)); type = TastierType.Boolean; .)
   ).
+
+/*------------------------------------------------------------------------*/
+
+// This production works out the offset of the element in an array and pushes this offset onto the stack
+
+ArrAccess<int[] dimensions>   (. TastierType type; int depthCount = 0;  .)
+=
+    '['
+  
+          SimExpr<out type>   (. if (type != TastierType.Integer) {
+                                   SemErr("indices for array access must be of type integer");
+                                 } 
+                              .)
+    ']'
+
+    {
+     '['
+                              (. 
+                                 if (depthCount + 1 > dimensions.Length) {
+                                   SemErr("too many indices given, the array has " + dimensions.Length  + " dimensions");
+                                 }
+                                 program.Add(new Instruction("", "Const " + dimensions[depthCount]));
+                                 program.Add(new Instruction("", "Mul"));
+                              .)
+
+          SimExpr<out type>   (. 
+                                 if (type != TastierType.Integer) {
+                                   SemErr("indices for array access must be of type integer");
+                                 } 
+                                 program.Add(new Instruction("", "Add"));
+                              .)
+     ']'
+    }.
 
 /*------------------------------------------------------------------------*/
 

@@ -1,9 +1,10 @@
 program MyTest {
 
+
     void test1() {
-        int arr[3];
+        char arr[3][2];
         char x;
-        x := 'x';
+        x := arr[1][1];
         write x;
     }
 
