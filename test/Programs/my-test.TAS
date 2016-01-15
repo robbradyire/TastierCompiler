@@ -1,11 +1,10 @@
 program MyTest {
 
-
     void test1() {
-        char arr[3][2];
+        char arr[2][2];
         char x;
-        x := arr[1][1];
-        write x;
+        arr[0][0] := 'a';
+        write arr[0][0];
     }
 
     void Main() {

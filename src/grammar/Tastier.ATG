@@ -397,7 +397,11 @@ ArrAccess<int[] dimensions>   (. TastierType type; int depthCount = 0;  .)
 =
     '['
   
-          SimExpr<out type>   (. if (type != TastierType.Integer) {
+          SimExpr<out type>   (. 
+                                 if (dimensions == null) {
+                                   SemErr("you can only use array notation on arrays");
+                                 }
+                                 if (type != TastierType.Integer) {
                                    SemErr("indices for array access must be of type integer");
                                  } 
                               .)
@@ -525,10 +529,33 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                       SemErr("reference to undefined variable " + name);
                                     }
                                 .)
-  ( ":="                         
+  (
+   [
+        ArrAccess<sym.Item7>    (.
+                                    // the offset is now on the stack
+                                    program.Add(new Instruction("", "Const " + sym.Item5));
+                                    program.Add(new Instruction("", "Add"));
+                                    // the index is now on the stack
+                                .)
+   ]
+     ":="                         
                                 (.
-                                    if ((TastierKind)sym.Item2 != TastierKind.Var) {
+                                    if ((TastierKind)sym.Item2 != TastierKind.Var && (TastierKind)sym.Item2 != TastierKind.Array) {
                                       SemErr("cannot assign to non-variable");
+                                    }
+                                    Instruction ins;
+                                    if (sym.Item2 == (int)TastierKind.Array) {
+                                      if (sym.Item4 == 0) {
+                                        ins = new Instruction("", "StoStG ");   // Store from Stack Globally
+                                      } else {
+                                        ins = new Instruction("", "StoSt " + (Math.Abs(openScopes.Count - sym.Item4)-1)); // Store from Stack
+                                      }
+                                    } else {
+                                      if (sym.Item4 == 0) {
+                                        ins = new Instruction("", "StoG " + (sym.Item5+3));
+                                      } else {
+                                        ins = new Instruction("", "Sto " + (Math.Abs(openScopes.Count - sym.Item4)-1) + " " + sym.Item5);
+                                      }
                                     }
                                 .)
 
@@ -539,13 +566,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                     if (type != (TastierType)sym.Item3) {
                                       SemErr("incompatible types");
                                     }
-                                    if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
-                                    }
-                                    else {
-                                      int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
-                                    }
+                                    program.Add(ins);
                                 .)
     | '?'                       (.
                                     if (type != TastierType.Boolean) {
@@ -558,13 +579,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                     if (type != (TastierType)sym.Item3) {
                                       SemErr("incompatible types");
                                     }
-                                    if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
-                                    }
-                                    else {
-                                      int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
-                                    }
+                                    program.Add(ins);
                                     Instruction startOfElse = new Instruction(openLabels.Pop(), "Nop");
                                     openLabels.Push(generateLabel());
                                     program.Add(new Instruction("", "Jmp " + openLabels.Peek()));
@@ -575,13 +590,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                     if (type != (TastierType)sym.Item3) {
                                       SemErr("incompatible types");
                                     }
-                                    if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
-                                    }
-                                    else {
-                                      int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
-                                    }
+                                    program.Add(ins);
                                 .)
     ';'                         (.
                                     program.Add(new Instruction(openLabels.Pop(), "Nop"));
@@ -841,7 +850,7 @@ VarDecl                         (.
                                       currentScope.Push(new Symbol(name, (int)TastierKind.Array, (int)type, 0, scopeSize, n, null));
                                       for (int i = 0; i < n; i++) {
                                         program.Add(new Instruction("", "Const " + (int)str[i]));
-                                        program.Add(new Instruction("", "StoG " + (scopeSize + i)));
+                                        program.Add(new Instruction("", "StoG " + (scopeSize + i + 3)));
                                       }
                                     } else {
                                       currentScope.Push(new Symbol(name, (int)TastierKind.Array, (int)type, openScopes.Count-1, scopeSize, n, null));
