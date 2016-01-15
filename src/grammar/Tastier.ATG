@@ -9,6 +9,7 @@ COMPILER Tastier
     Integer,
     Boolean,
     Char,
+    String
   };
 
   enum TastierKind : int {  // kinds of symbol
@@ -354,7 +355,7 @@ Factor<out TastierType type>    (.  int n; Symbol sym; string name; .)
                                     type = (TastierType)sym.Item3;
                                     if ((TastierKind)sym.Item2 == TastierKind.Var || (TastierKind)sym.Item2 == TastierKind.Const) {
                                       if (sym.Item4 == 0) {
-                                        program.Add(new Instruction("", "LoadG " + (sym.Item5)));
+                                        program.Add(new Instruction("", "LoadG " + sym.Item5));
                                       } else {
                                         int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
                                         program.Add(new Instruction("", "Load " + lexicalLevelDifference + " " + sym.Item5));
@@ -552,7 +553,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                       }
                                     } else {
                                       if (sym.Item4 == 0) {
-                                        ins = new Instruction("", "StoG " + (sym.Item5+3));
+                                        ins = new Instruction("", "StoG " + sym.Item5);
                                       } else {
                                         ins = new Instruction("", "Sto " + (Math.Abs(openScopes.Count - sym.Item4)-1) + " " + sym.Item5);
                                       }
@@ -663,7 +664,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                     }
 
                                     if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
+                                      program.Add(new Instruction("", "StoG " + sym.Item5));
                                     }
                                     else {
                                       int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
@@ -697,7 +698,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                       SemErr("incompatible types");
                                     }
                                     if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
+                                      program.Add(new Instruction("", "StoG " + sym.Item5));
                                     } else {
                                       int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
                                       program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
@@ -743,7 +744,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                     program.Add(new Instruction("", "Read"));
 
                                     if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
+                                      program.Add(new Instruction("", "StoG " + sym.Item5));
                                     }
                                     else {
                                       int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
@@ -827,6 +828,7 @@ Type<out TastierType type>
  ( "int"                        (.  type = TastierType.Integer; .)
  | "bool"                       (.  type = TastierType.Boolean; .)
  | "char"                       (.  type = TastierType.Char; .)
+ | "string"                     (.  type = TastierType.String; .)
  ).
 
 /*------------------------------------------------------------------------*/
@@ -838,16 +840,17 @@ VarDecl                         (.
   Ident<out name>               
   (
     ":="                        (.
-                                    if (type != TastierType.Char) {
+                                    if (type != TastierType.String) {
                                       SemErr("Only strings can be assigned when declared.");
                                     }
                                 .)
     string                      (.
+                                    type = TastierType.Char;
                                     str = (t.val).Substring(1, t.val.Length - 2);
                                     n = str.Length;
                                     scopeSize = getScopeSize(currentScope);
                                     if (openScopes.Count == 1) {
-                                      currentScope.Push(new Symbol(name, (int)TastierKind.Array, (int)type, 0, scopeSize, n, null));
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Array, (int)type, 0, scopeSize+3, n, null));
                                       for (int i = 0; i < n; i++) {
                                         program.Add(new Instruction("", "Const " + (int)str[i]));
                                         program.Add(new Instruction("", "StoG " + (scopeSize + i + 3)));
@@ -866,6 +869,9 @@ VarDecl                         (.
   ArrDecl<out dimensions>       (.
                                     if (type != TastierType.Integer && type != TastierType.Char && type != TastierType.Boolean) {
                                       SemErr("only arrays of type int, char and boolean are allowed");
+                                    }
+                                    if (openScopes.Count == 1) {
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Array, (int)type, openScopes.Count-1, getScopeSize(currentScope)+3, getArraySize(dimensions), dimensions));
                                     } else {
                                       currentScope.Push(new Symbol(name, (int)TastierKind.Array, (int)type, openScopes.Count-1, getScopeSize(currentScope), getArraySize(dimensions), dimensions));
                                     }
@@ -874,11 +880,19 @@ VarDecl                         (.
   |
   
                                 (.
-                                    currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1, null));
+                                    if (openScopes.Count == 1) {
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope)+3, 1, null));
+                                    } else {
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1, null));
+                                    } 
                                 .)
   
     { ',' Ident<out name>       (.
-                                    currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1, null));
+                                    if (openScopes.Count == 1) {
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope)+3, 1, null));
+                                    } else {
+                                      currentScope.Push(new Symbol(name, (int)TastierKind.Var, (int)type, openScopes.Count-1, getScopeSize(currentScope), 1, null));
+                                    } 
                                 .)
     }
   ';'
@@ -929,7 +943,7 @@ ConstDecl                       (.
                                       SemErr("incompatible types");
                                     }
                                     if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + (sym.Item5+3)));
+                                      program.Add(new Instruction("", "StoG " + sym.Item5));
                                     } else {
                                       program.Add(new Instruction("", "Sto " + 0 + " " + sym.Item5));
                                     }
