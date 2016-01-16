@@ -544,7 +544,7 @@ SimExpr<out TastierType type>   (.  TastierType type1; Instruction inst; .)
 
 /*------------------------------------------------------------------------*/
 
-Stat                            (.  TastierType type; string name; string str; Symbol sym; .)
+Stat                            (.  TastierType type; string name; string str; Symbol sym; Instruction ins; .)
 
 = Ident<out name>               
 (
@@ -578,7 +578,6 @@ Stat                            (.  TastierType type; string name; string str; S
                                     if ((TastierKind)sym.Item2 != TastierKind.Var && (TastierKind)sym.Item2 != TastierKind.Array) {
                                       SemErr("cannot assign to non-variable");
                                     }
-                                    Instruction ins;
                                     if (sym.Item2 == (int)TastierKind.Array) {
                                       if (sym.Item4 == 0) {
                                         ins = new Instruction("", "StoStG ");   // Store from Stack Globally
@@ -687,27 +686,52 @@ Stat                            (.  TastierType type; string name; string str; S
                                 .)
 | "for" '(' 
 [ Ident<out name>
-  ":=" 
-  Expr<out type>                (.
+  [
+  '.'
+  Ident<out str>                (.
+                                    name = name + str;
+                                .)
+  ]
+                                (.
                                     sym = lookup(openScopes, name);
                                     if (sym == null) {
                                       SemErr("reference to undefined variable " + name);
                                     }
-
-                                    if ((TastierKind)sym.Item2 != TastierKind.Var) {
+                                .)
+  
+   [
+        ArrAccess<sym.Item7>    (.
+                                    // the offset is now on the stack
+                                    program.Add(new Instruction("", "Const " + sym.Item5));
+                                    program.Add(new Instruction("", "Add"));
+                                    // the index is now on the stack
+                                .)
+   ]
+     ":="                         
+                                (.
+                                    if ((TastierKind)sym.Item2 != TastierKind.Var && (TastierKind)sym.Item2 != TastierKind.Array) {
                                       SemErr("cannot assign to non-variable");
                                     }
+                                    if (sym.Item2 == (int)TastierKind.Array) {
+                                      if (sym.Item4 == 0) {
+                                        ins = new Instruction("", "StoStG ");   // Store from Stack Globally
+                                      } else {
+                                        ins = new Instruction("", "StoSt " + (Math.Abs(openScopes.Count - sym.Item4)-1)); // Store from Stack
+                                      }
+                                    } else {
+                                      if (sym.Item4 == 0) {
+                                        ins = new Instruction("", "StoG " + sym.Item5);
+                                      } else {
+                                        ins = new Instruction("", "Sto " + (Math.Abs(openScopes.Count - sym.Item4)-1) + " " + sym.Item5);
+                                      }
+                                    }
+                                .)
+  Expr<out type>
+                                (.
                                     if (type != (TastierType)sym.Item3) {
                                       SemErr("incompatible types");
                                     }
-
-                                    if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + sym.Item5));
-                                    }
-                                    else {
-                                      int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
-                                    }
+                                    program.Add(ins);
                                 .)
   ]';'                          (.
                                     // the first label is created so that the increment statement can be jumped over in the first loop iteration
@@ -721,26 +745,52 @@ Stat                            (.  TastierType type; string name; string str; S
                                     openLabels.Push(firstIterationLabel);
                                 .)
   Ident<out name>
-  ":=" 
-  Expr<out type>                                         
+  [
+  '.'
+  Ident<out str>                (.
+                                    name = name + str;
+                                .)
+  ]
                                 (.
                                     sym = lookup(openScopes, name);
                                     if (sym == null) {
                                       SemErr("reference to undefined variable " + name);
                                     }
-
-                                    if ((TastierKind)sym.Item2 != TastierKind.Var) {
+                                .)
+  
+   [
+        ArrAccess<sym.Item7>    (.
+                                    // the offset is now on the stack
+                                    program.Add(new Instruction("", "Const " + sym.Item5));
+                                    program.Add(new Instruction("", "Add"));
+                                    // the index is now on the stack
+                                .)
+   ]
+     ":="                         
+                                (.
+                                    if ((TastierKind)sym.Item2 != TastierKind.Var && (TastierKind)sym.Item2 != TastierKind.Array) {
                                       SemErr("cannot assign to non-variable");
                                     }
+                                    if (sym.Item2 == (int)TastierKind.Array) {
+                                      if (sym.Item4 == 0) {
+                                        ins = new Instruction("", "StoStG ");   // Store from Stack Globally
+                                      } else {
+                                        ins = new Instruction("", "StoSt " + (Math.Abs(openScopes.Count - sym.Item4)-1)); // Store from Stack
+                                      }
+                                    } else {
+                                      if (sym.Item4 == 0) {
+                                        ins = new Instruction("", "StoG " + sym.Item5);
+                                      } else {
+                                        ins = new Instruction("", "Sto " + (Math.Abs(openScopes.Count - sym.Item4)-1) + " " + sym.Item5);
+                                      }
+                                    }
+                                .)
+  Expr<out type>
+                                (.
                                     if (type != (TastierType)sym.Item3) {
                                       SemErr("incompatible types");
                                     }
-                                    if (sym.Item4 == 0) {
-                                      program.Add(new Instruction("", "StoG " + sym.Item5));
-                                    } else {
-                                      int lexicalLevelDifference = Math.Abs(openScopes.Count - sym.Item4)-1;
-                                      program.Add(new Instruction("", "Sto " + lexicalLevelDifference + " " + sym.Item5));
-                                    }
+                                    program.Add(ins);
                                 .)
   ';'                           (.
                                     // insert the label for the start of the first iteration
