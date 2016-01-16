@@ -534,15 +534,27 @@ SimExpr<out TastierType type>   (.  TastierType type1; Instruction inst; .)
 
 /*------------------------------------------------------------------------*/
 
-Stat                            (.  TastierType type; string name; Symbol sym; .)
+Stat                            (.  TastierType type; string name; string str; Symbol sym; .)
 
-= Ident<out name>               (.
+= Ident<out name>               
+(
+  (
+  '.'
+  Ident<out str>                (.
+                                    sym = lookup(openScopes, name+"."+str);
+                                    if (sym == null) {
+                                      SemErr("no struct " + name + " with item " + str + " exists");
+                                    }
+                                .)
+  |
+                                (.
                                     sym = lookup(openScopes, name);
                                     if (sym == null) {
                                       SemErr("reference to undefined variable " + name);
                                     }
                                 .)
-  (
+  )
+  
    [
         ArrAccess<sym.Item7>    (.
                                     // the offset is now on the stack
@@ -611,6 +623,10 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
     )
 
   | '(' ')' ';'                 (.
+                                    sym = lookup(openScopes, name);
+                                    if (sym == null) {
+                                      SemErr("reference to undefined variable " + name);
+                                    }
                                     if ((TastierKind)sym.Item2 != TastierKind.Proc) {
                                       SemErr("object is not a procedure");
                                     }
@@ -620,7 +636,7 @@ Stat                            (.  TastierType type; string name; Symbol sym; .
                                     string procedureLabel = getLabelForProcedureName(lexicalLevelDifference, sym.Item1);
                                     program.Add(new Instruction("", "Call " + lexicalLevelDifference + " " + procedureLabel));
                                 .)
-  )
+)
 
 | "if"
   '(' Expr<out type> ')'        (.
@@ -861,7 +877,7 @@ VarDecl                         (.
                                 .)
    Ident<out name>
                    ';'          (.
-                                    int size = currentScope.Count == 1 ? getScopeSize(currentScope) + 3 : getScopeSize(currentScope);
+                                    int size = openScopes.Count == 1 ? getScopeSize(currentScope) + 3 : getScopeSize(currentScope);
                                     foreach (KeyValuePair<string, int> entry in structVar.Item2) {
                                       if ((structVar.Item3).ContainsKey(entry.Key)) {
                                         currentScope.Push(new Symbol(name+"."+entry.Key, (int)TastierKind.Array, entry.Value,

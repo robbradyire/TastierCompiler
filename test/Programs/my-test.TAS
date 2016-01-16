@@ -8,10 +8,7 @@ program MyTest {
     struct shimsham mystruct;
 
     void test1() {
-        char arr[2][2];
-        char x;
-        arr[0][0] := 'a';
-        write arr[0][0];
+      mystruct.zimzam := 5;
     }
 
     void Main() {
