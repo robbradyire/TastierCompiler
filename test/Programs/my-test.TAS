@@ -9,7 +9,10 @@ program MyTest {
 
     void test1() {
       mystruct.zimzam := 5;
-      write mystruct.zimzam;
+      int x;
+      for (x := mystruct.zimzam; x := x + mystruct.zimzam; x < 25) {
+        write x;
+      }
     }
 
     void Main() {
