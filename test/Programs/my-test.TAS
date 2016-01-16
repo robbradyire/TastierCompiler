@@ -9,6 +9,7 @@ program MyTest {
 
     void test1() {
       mystruct.zimzam := 5;
+      write mystruct.zimzam;
     }
 
     void Main() {
