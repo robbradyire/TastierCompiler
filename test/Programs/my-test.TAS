@@ -1,5 +1,12 @@
 program MyTest {
 
+    define struct shimsham {
+        int zimzam;
+        int flimflam[2][2];
+    }
+
+    struct shimsham mystruct;
+
     void test1() {
         char arr[2][2];
         char x;

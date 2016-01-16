@@ -16,7 +16,8 @@ COMPILER Tastier
     Var,
     Array,
     Const,
-    Proc
+    Proc,
+    Struct
   };
 
 /*
@@ -80,6 +81,7 @@ COMPILER Tastier
                       Item4, -1 if procedure
     * Symbol.Item6 -> length of the symbol in memory
     * Symbol.Item7 -> Array of the dimensions of an array
+    * Symbol.Item8 -> Array of the names in a struct
 */
 
   class Scope : Stack<Symbol> {}
@@ -128,6 +130,7 @@ Stack<Scope> openScopes = new Stack<Scope>();
 
 Program program = new Program();
 Program header = new Program();
+List<Struct> StructList = new List<Struct>();
 
 Stack<string> openProcedureDeclarations = new Stack<string>();
 
@@ -240,6 +243,15 @@ Symbol lookup(Stack<Scope> scopes, string name) {
     variableOffset = 0;
   }
   return null; // if the name wasn't found in any open scopes.
+}
+
+Struct findStruct(string name) {
+    foreach (Struct s in StructList) {
+        if (s.Item1 == name) {
+            return s;
+        }
+    }
+    return null;
 }
 
 /*
@@ -778,6 +790,8 @@ Tastier                         (.  string name; .)
 
   { ConstDecl }
 
+  { StructDecl }
+
   { VarDecl 
 
     |                           (.
@@ -795,7 +809,7 @@ Tastier                         (.  string name; .)
 
                                     header.Add(new Instruction("", ".names " + (openScopes.Peek().Count)));
                                     foreach (Symbol s in openScopes.Peek()) {
-                                      if (s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const || s.Item2 == (int)TastierKind.Array) {
+                                      if (s.Item2 == (int)TastierKind.Var || s.Item2 == (int)TastierKind.Const || s.Item2 == (int)TastierKind.Array || s.Item2 == (int)TastierKind.Struct) {
                                         header.Add(new Instruction("", ".var " + ((int)s.Item3) + " " + s.Item1));
                                       } else if (s.Item2 == (int)TastierKind.Proc) {
                                         header.Add(new Instruction("", ".proc " + s.Item1));
@@ -834,9 +848,32 @@ Type<out TastierType type>
 /*------------------------------------------------------------------------*/
 
 VarDecl                         (.
-                                    string name; TastierType type; int scopeSize; int n; int[] dimensions; string str; Scope currentScope = openScopes.Peek();
+                                    string name; TastierType type; int scopeSize; int n; int[] dimensions; string str; Struct structVar; Scope currentScope = openScopes.Peek();
                                 .)
-= Type<out type>
+= 
+  (
+   "struct"
+   Ident<out name>              (.
+                                    structVar = findStruct(name);
+                                    if (structVar == null) {
+                                      SemErr("that struct doesn't exist");
+                                    }
+                                .)
+   Ident<out name>
+                   ';'          (.
+                                    int size = currentScope.Count == 1 ? getScopeSize(currentScope) + 3 : getScopeSize(currentScope);
+                                    foreach (KeyValuePair<string, int> entry in structVar.Item2) {
+                                      if ((structVar.Item3).ContainsKey(entry.Key)) {
+                                        currentScope.Push(new Symbol(name+"."+entry.Key, (int)TastierKind.Array, entry.Value,
+                                                openScopes.Count-1, size, getArraySize(structVar.Item3[entry.Key]), structVar.Item3[entry.Key]));
+                                      } else {
+                                        currentScope.Push(new Symbol(name+"."+entry.Key, (int)TastierKind.Var, entry.Value,
+                                                openScopes.Count-1, size, 1, null));
+                                      }
+                                    }
+                                .)
+   
+| Type<out type>
   Ident<out name>               
   (
     ":="                        (.
@@ -897,7 +934,58 @@ VarDecl                         (.
     }
   ';'
 
+  )
   ).
+
+/*------------------------------------------------------------------------*/
+
+StructDecl                      (.
+                                    string name; int[] dimensions; string str; TastierType type = TastierType.Undefined;
+                                .)
+=
+    "define"
+    "struct"
+    Ident<out name>             (.
+                                    if (findStruct(name) != null) { SemErr("struct name already being used"); }
+                                    Dictionary<string, int> structVars = new Dictionary<string, int>();
+                                    Dictionary<string, int[]> structArrayDimens = new Dictionary<string, int[]>();
+                                .)
+    '{'
+        Type<out type>
+        Ident<out str>               
+        (
+            ArrDecl<out dimensions>
+        ';'                      (.
+                                    if (type != TastierType.Integer && type != TastierType.Char && type != TastierType.Boolean) {
+                                      SemErr("only arrays of type int, char and boolean are allowed");
+                                    }
+                                    structVars.Add(str, (int)type);
+                                    structArrayDimens.Add(str, dimensions);
+                                 .)
+        | ';'                    (.
+                                    structVars.Add(str, (int)type);
+                                 .)
+        )
+        {
+            Type<out type>
+            Ident<out str>               
+            (
+                ArrDecl<out dimensions>
+            ';'                      (.
+                                        if (type != TastierType.Integer && type != TastierType.Char && type != TastierType.Boolean) {
+                                          SemErr("only arrays of type int, char and boolean are allowed");
+                                        }
+                                        structVars.Add(str, (int)type);
+                                        structArrayDimens.Add(str, dimensions);
+                                     .)
+            | ';'                    (.
+                                        structVars.Add(str, (int)type);
+                                     .)
+            )
+        }
+    '}'     (.
+                StructList.Add(new Struct(name, structVars, structArrayDimens));
+            .).
 
 /*------------------------------------------------------------------------*/
 

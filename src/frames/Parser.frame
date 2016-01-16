@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Symbol = System.Tuple<string, int, int, int, int, int, int[]>;
+using Struct = System.Tuple<string, System.Collections.Generic.Dictionary<string, int>, System.Collections.Generic.Dictionary<string, int[]>>;
 using Instruction = System.Tuple<string,string>;
 using StackAddress = System.Tuple<int, int>;
 
