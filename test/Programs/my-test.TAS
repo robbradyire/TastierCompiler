@@ -8,7 +8,7 @@ program MyTest {
     struct shimsham mystruct;
 
     void test1() {
-      mystruct.zimzam := 5;
+      mystruct.zimzam := length(mystruct.flimflam);
       int x;
       for (x := mystruct.zimzam; x := x + mystruct.zimzam; x < 25) {
         write x;

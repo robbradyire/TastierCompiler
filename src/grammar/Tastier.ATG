@@ -386,6 +386,27 @@ Factor<out TastierType type>    (.  int n; Symbol sym; string name; string str =
                                 .)
   )
 
+  | "length" '('
+    Ident<out name>
+    [
+      '.'
+      Ident<out str>            (.
+                                    name = name + "." + str;
+                                .)
+    ]                           (.
+                                    sym = lookup(openScopes, name);
+                                    if (sym == null) {
+                                      SemErr("no symbol with that name");
+                                    }
+                                    if (sym.Item2 == (int)TastierKind.Array) {
+                                      program.Add(new Instruction("", "Const " + sym.Item6));
+                                    } else {
+                                      SemErr("you can only get the length of an array");
+                                    }
+                                    type = TastierType.Integer;
+                                .)
+    ')'
+
   | number                      (.
                                     n = Convert.ToInt32(t.val);
                                     program.Add(new Instruction("", "Const " + n));
