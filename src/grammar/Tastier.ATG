@@ -338,7 +338,7 @@ Expr<out TastierType type>      (.  TastierType type1; Instruction inst; .)
 
 /*------------------------------------------------------------------------*/
 
-Factor<out TastierType type>    (.  int n; Symbol sym; string name; string str = null; .)
+Factor<out TastierType type>    (.  int n; Symbol sym; string name; int[] dimensions = null; string str = null; .)
 =                               (.  type = TastierType.Undefined; .)
   ( Ident<out name>   
     [
@@ -393,13 +393,27 @@ Factor<out TastierType type>    (.  int n; Symbol sym; string name; string str =
       Ident<out str>            (.
                                     name = name + "." + str;
                                 .)
-    ]                           (.
+    ]                           
+    [
+      ArrDecl<out dimensions>
+    ]
+                                (.
                                     sym = lookup(openScopes, name);
                                     if (sym == null) {
                                       SemErr("no symbol with that name");
                                     }
                                     if (sym.Item2 == (int)TastierKind.Array) {
-                                      program.Add(new Instruction("", "Const " + sym.Item6));
+                                      if (dimensions != null) {
+                                        int i;
+                                        for (i = 0; i < dimensions.Length; i++) {
+                                          if (dimensions[i] > sym.Item7[i]) {
+                                            SemErr("array index out of bounds for length of array");
+                                          }
+                                        }
+                                        program.Add(new Instruction("", "Const " + sym.Item7[i]));
+                                      } else {
+                                        program.Add(new Instruction("", "Const " + sym.Item6));
+                                      }
                                     } else {
                                       SemErr("you can only get the length of an array");
                                     }
@@ -998,8 +1012,9 @@ VarDecl                         (.
                                 .)
    Ident<out name>
                    ';'          (.
-                                    int size = openScopes.Count == 1 ? getScopeSize(currentScope) + 3 : getScopeSize(currentScope);
+                                    int size;
                                     foreach (KeyValuePair<string, int> entry in structVar.Item2) {
+                                      size = openScopes.Count == 1 ? getScopeSize(currentScope) + 3 : getScopeSize(currentScope);
                                       if ((structVar.Item3).ContainsKey(entry.Key)) {
                                         currentScope.Push(new Symbol(name+"."+entry.Key, (int)TastierKind.Array, entry.Value,
                                                 openScopes.Count-1, size, getArraySize(structVar.Item3[entry.Key]), structVar.Item3[entry.Key]));

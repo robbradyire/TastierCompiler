@@ -1,21 +1,29 @@
 program MyTest {
 
-    define struct shimsham {
-        int zimzam;
-        int flimflam[2][2];
+    define struct Employee {
+        int id;
+        int salary;
+        bool isTopPerformer;
     }
 
-    struct shimsham mystruct;
-
-    void test1() {
-      mystruct.zimzam := length(mystruct.flimflam);
-      int x;
-      for (x := mystruct.zimzam; x := x + mystruct.zimzam; x < 25) {
-        write x;
-      }
+    void testArrays() {
+        int myArray[2][3];
+        myArray[1][2] := 5;
+        write myArray[1][2];
     }
 
-    void test2() {
+
+    void testStructs() {
+        struct Employee rob;
+        rob.id := 200;
+        rob.salary := 30000;
+        rob.isTopPerformer := true;
+        write rob.id;
+        write rob.salary;
+        write rob.isTopPerformer;
+    }
+
+    void testSwitch() {
       int x;
       x := 5;
       switch (x) {
@@ -29,7 +37,16 @@ program MyTest {
       }
     }
 
+    void testLength() {
+        int array[2][3][4];
+        write length(array);
+        write length(array[1][1]);
+    }
+
     void Main() {
-        test2();
+        testArrays();
+        testStructs();
+        testSwitch();
+        testLength();
     }
 }
