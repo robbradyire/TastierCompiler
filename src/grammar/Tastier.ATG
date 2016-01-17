@@ -544,7 +544,7 @@ SimExpr<out TastierType type>   (.  TastierType type1; Instruction inst; .)
 
 /*------------------------------------------------------------------------*/
 
-Stat                            (.  TastierType type; string name; string str; Symbol sym; Instruction ins; .)
+Stat                            (.  TastierType type; string name; string str; Symbol sym; Instruction ins; string endLabel; .)
 
 = Ident<out name>               
 (
@@ -801,7 +801,7 @@ Stat                            (.  TastierType type; string name; string str; S
                                       SemErr("boolean type expected");
                                     }
                                     // jump to loop end
-                                    string endLabel = generateLabel();
+                                    endLabel = generateLabel();
                                     openLabels.Push(endLabel);
                                     program.Add(new Instruction("", "FJmp " + endLabel)); // jump to the loop end label if condition is false
                                 .)
@@ -815,6 +815,46 @@ Stat                            (.  TastierType type; string name; string str; S
                                     program.Add(new Instruction(endLabel, "Nop")); // end of loop
                                 .)
               
+| "switch" '('                  (. endLabel = generateLabel(); .)
+  Expr<out type>                (. TastierType originalType = type; .)
+  ')' '{'
+  "case"                        (. program.Add(new Instruction("", "Dup")); .)
+  Expr<out type>  ':'           (. 
+                                   if (originalType != type) {
+                                     SemErr("the original statement and this case are of different types");
+                                   }
+                                   program.Add(new Instruction("", "Equ"));
+                                   string tmpLabel = generateLabel();
+                                   program.Add(new Instruction("", "FJmp " + tmpLabel));
+                                .)
+  Stat
+  ["break" ';']                 (. 
+                                   program.Add(new Instruction("", "Jmp " + endLabel));
+                                .)
+{  
+  "case"                        (.
+                                   program.Add(new Instruction(tmpLabel, "Dup"));
+                                .)
+  Expr<out type>  ':'           (. 
+                                   if (originalType != type) {
+                                     SemErr("the original statement and this case are of different types");
+                                   }
+                                   program.Add(new Instruction("", "Equ"));
+                                   tmpLabel = generateLabel();
+                                   program.Add(new Instruction("", "FJmp " + tmpLabel));
+                                .)
+  Stat
+  ["break" ';']                 (. 
+                                   program.Add(new Instruction("", "Jmp " + endLabel));
+                                .)
+}
+[
+                                (. program.Add(new Instruction(tmpLabel, "Nop")); .)
+  "default" ':' Stat
+]
+  '}'                           (. program.Add(new Instruction(endLabel, "Pop")); .)
+
+
 | "read"
   Ident<out name> ';'           (.
                                     sym = lookup(openScopes, name);
